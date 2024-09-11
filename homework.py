@@ -1,12 +1,13 @@
-from http import HTTPStatus
+import logging
 import os
 import time
-import logging
-import requests
-from telebot import TeleBot
-from dotenv import load_dotenv
+from http import HTTPStatus
 
-# Загрузка переменных окружения
+import requests
+from dotenv import load_dotenv
+from telebot import TeleBot
+
+
 load_dotenv()
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
@@ -23,7 +24,7 @@ HOMEWORK_VERDICTS = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
-# Настройка логирования
+"""Настройка логирования"""
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -59,12 +60,11 @@ def get_api_answer(timestamp):
         if response.status_code != HTTPStatus.OK:
             logging.error('Ошибка API')
             raise requests.RequestException(
-                f'Ошибка API: код{response.status_code}'
-                )
+                f'Ошибка API: код{response.status_code}')
         logging.debug('Запрос к API выполнен успешно.')
         return response.json()
     except requests.exceptions.RequestException:
-        raise ('Ошибка запроса к API:')
+        raise ('Ошибка запроса к API')
 
 
 def check_response(response):
@@ -117,7 +117,7 @@ def main():
             else:
                 logging.debug('Нет новых статусов.')
 
-            timestamp = int(time.time())  # Обновляем временную метку
+            timestamp = int(time.time())
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.error(message)
