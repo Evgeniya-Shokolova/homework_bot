@@ -45,8 +45,8 @@ def check_tokens():
         if not globals()[token]]
     if missing_tokens:
         logging.critical(
-            f'Отсутствуют обязательные переменные окружения:\
-                {", ".join(missing_tokens)}')
+            f'Отсутствуют обязательные переменные окружения: '
+            f'{", ".join(missing_tokens)}')
         sys.exit(1)
 
 
@@ -58,7 +58,6 @@ def send_message(bot, message):
         logging.debug(f'Бот отправил сообщение: {message}')
     except (requests.RequestException, ApiException) as error:
         logging.error(f'Сбой при отправке сообщения в Telegram: {error}')
-        raise
 
 
 def get_api_answer(timestamp):
@@ -67,16 +66,18 @@ def get_api_answer(timestamp):
     logging.debug(f'Начинаю запрос к API {ENDPOINT} с параметрами: {params}')
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-        response.raise_for_status()
     except requests.exceptions.RequestException as error:
-        logging.error(f'Ошибка при запросе к API: {error}')
-        raise ConnectionError(f'Ошибка API: {error}')
+        raise ConnectionError(
+            f'Ошибка API: {error}'
+            f'при запросе к {ENDPOINT}'
+            f'с параметрами: {params}')
 
     if response.status_code != HTTPStatus.OK:
-        logging.error(
-            f'Ошибка API: код {response.status_code}\
-                при запросе к {ENDPOINT} с параметрами: {params}')
-        raise ConnectionError(f'Ошибка API: код {response.status_code}')
+        raise ValueError(
+            f'Ошибка API: код {response.status_code}'
+            f'при запросе к {ENDPOINT}'
+            f'с параметрами: {params}')
+
     logging.debug('Запрос к API выполнен успешно.')
     return response.json()
 
@@ -92,8 +93,8 @@ def check_response(response):
         raise KeyError('Ответ API должен содержать ключ "homeworks".')
     if not isinstance(response['homeworks'], list):
         raise TypeError(
-            f'Данные под ключом "homeworks" должны быть списком.\
-                Получен тип: {type(response["homeworks"])}')
+            f'Данные под ключом "homeworks" должны быть списком. Получен тип:'
+            f'{type(response["homeworks"])}')
 
     logging.debug('Проверка ответа сервера выполнена успешно.')
     return response['homeworks']
@@ -106,9 +107,6 @@ def parse_status(homework):
     homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
 
-    if homework_status is None:
-        raise ValueError('Отсутствует статус домашней работы.')
-
     if 'status' not in homework:
         raise ValueError('Отсутствует статус домашней работы.')
     if homework_status not in HOMEWORK_VERDICTS:
@@ -120,35 +118,28 @@ def parse_status(homework):
 def main():
     """Основная логика работы бота."""
     check_tokens()
-
     bot = TeleBot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
     last_message = ''
-    last_error_message = ''
 
     while True:
         try:
             api_answer = get_api_answer(timestamp)
             homeworks = check_response(api_answer)
-
             if homeworks:
                 homework = homeworks[0]
                 message = parse_status(homework)
-                if message != last_message:
-                    send_message(bot, message)
-                    last_message = message
+                send_message(bot, message)
+                last_message = message
             else:
                 logging.debug('Нет новых статусов.')
-
             timestamp = api_answer.get('current_date', int(time.time()))
-
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            logging.error(message)
-            if message != last_error_message:
+            logging.error(message, exc_info=True)
+            if message != last_message:
                 send_message(bot, message)
-                last_error_message = message
-
+                last_message = message
         finally:
             time.sleep(RETRY_PERIOD)
 
